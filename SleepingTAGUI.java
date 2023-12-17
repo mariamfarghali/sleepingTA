@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
- */
 package zeinagui;
 
 import javax.swing.*;
@@ -18,10 +14,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class SleepingTAGUI extends JFrame {
-    private JTextField barbersField, chairsField, customersField;
+    private JTextField barbersField, chairsField, studentsField;
     private JTextField sleepingField, workingField, waitingField, retryField;
     private JButton startButton;
-    private Bshop shop;
+    private Broom room;
 
     public SleepingTAGUI() {
         setTitle("Sleeping TA Simulation");
@@ -37,8 +33,8 @@ public class SleepingTAGUI extends JFrame {
         add(chairsField);
 
         add(new JLabel("Number of Students:"));
-        customersField = new JTextField();
-        add(customersField);
+        studentsField = new JTextField();
+        add(studentsField);
 
         add(new JLabel("TAs Sleeping:"));
         sleepingField = new JTextField();
@@ -76,32 +72,32 @@ public class SleepingTAGUI extends JFrame {
     }
 
     private void startSimulation() {
-        int noOfBarbers = Integer.parseInt(barbersField.getText());
+        int noOfTAs = Integer.parseInt(barbersField.getText());
         int noOfChairs = Integer.parseInt(chairsField.getText());
-        int noOfCustomers = Integer.parseInt(customersField.getText());
+        int noOfStudents = Integer.parseInt(studentsField.getText());
 
-        shop = new Bshop(noOfBarbers, noOfChairs);
-        shop.setGui(this); // Pass a reference to the GUI to the Bshop instance
+        room = new Broom(noOfTAs, noOfChairs);
+        room.setGui(this); // Pass a reference to the GUI to the Broom instance
 
         SwingWorker<Void, Void> worker = new SwingWorker<Void, Void>() {
             @Override
             protected Void doInBackground() throws Exception {
                 ExecutorService exec = Executors.newFixedThreadPool(12);
 
-                for (int i = 1; i <= noOfBarbers; i++) {
-                    Barber barber = new Barber(shop, i);
-                    Thread thBarber = new Thread(barber);
-                    exec.execute(thBarber);
+                for (int i = 1; i <= noOfTAs; i++) {
+                    TA barber = new TA(room, i);
+                    Thread thTA = new Thread(barber);
+                    exec.execute(thTA);
                 }
 
                 Random r = new Random();
 
-                for (int i = 0; i < noOfCustomers; i++) {
-                    Customer customer = new Customer(shop);
-                    customer.setInTime(new Date());
-                    Thread thCustomer = new Thread(customer);
-                    customer.setCustomerId(i + 1);
-                    exec.execute(thCustomer);
+                for (int i = 0; i < noOfStudents; i++) {
+                    Student student = new Student(room);
+                    student.setInTime(new Date());
+                    Thread thStudent = new Thread(student);
+                    student.setStudentId(i + 1);
+                    exec.execute(thStudent);
 
                     try {
                         int millisDelay = r.nextInt(1000) + 500;
@@ -140,10 +136,10 @@ public class SleepingTAGUI extends JFrame {
 
     protected void updateTextFieldValues() {
         SwingUtilities.invokeLater(() -> {
-            sleepingField.setText(String.valueOf(shop.getBarbersSleeping().get()));
-            workingField.setText(String.valueOf(shop.getBarbersWorking().get()));
-            waitingField.setText(String.valueOf(shop.getCustomersWaiting().get()));
-            retryField.setText(String.valueOf(shop.getCustomersLeftAndWillRetry().get()));
+            sleepingField.setText(String.valueOf(room.getTAsSleeping().get()));
+            workingField.setText(String.valueOf(room.getTAsWorking().get()));
+            waitingField.setText(String.valueOf(room.getStudentsWaiting().get()));
+            retryField.setText(String.valueOf(room.getStudentsLeftAndWillRetry().get()));
         });
     }
 
@@ -152,42 +148,42 @@ public class SleepingTAGUI extends JFrame {
     }
 }
 
-class Barber implements Runnable {
-    private Bshop shop;
+class TA implements Runnable {
+    private Broom room;
     private int barberId;
 
-    public Barber(Bshop shop, int barberId) {
-        this.shop = shop;
+    public TA(Broom room, int barberId) {
+        this.room = room;
         this.barberId = barberId;
     }
 
     @Override
     public void run() {
         while (true) {
-            shop.cutHair(barberId);
+            room.cutHair(barberId);
         }
     }
 }
 
-class Customer implements Runnable {
-    private int customerId;
+class Student implements Runnable {
+    private int studentId;
     private Date inTime;
-    private Bshop shop;
+    private Broom room;
 
-    public Customer(Bshop shop) {
-        this.shop = shop;
+    public Student(Broom room) {
+        this.room = room;
     }
 
-    public int getCustomerId() {
-        return customerId;
+    public int getStudentId() {
+        return studentId;
     }
 
     public Date getInTime() {
         return inTime;
     }
 
-    public void setCustomerId(int customerId) {
-        this.customerId = customerId;
+    public void setStudentId(int studentId) {
+        this.studentId = studentId;
     }
 
     public void setInTime(Date inTime) {
@@ -200,72 +196,72 @@ class Customer implements Runnable {
     }
 
     private synchronized void goForHairCut() {
-        shop.add(this);
+        room.add(this);
     }
 }
 
-class Bshop {
+class Broom {
     private SleepingTAGUI gui;
     private AtomicInteger totalHairCuts = new AtomicInteger(0);
-    private AtomicInteger customersLost = new AtomicInteger(0);
+    private AtomicInteger studentsLost = new AtomicInteger(0);
     private AtomicInteger barbersWorking = new AtomicInteger(0);
     private AtomicInteger barbersSleeping = new AtomicInteger(0);
-    private AtomicInteger customersWaiting = new AtomicInteger(0);
-    private AtomicInteger customersLeftAndWillRetry = new AtomicInteger(0);
+    private AtomicInteger studentsWaiting = new AtomicInteger(0);
+    private AtomicInteger studentsLeftAndWillRetry = new AtomicInteger(0);
 
-    int nchair, noOfBarbers, availableBarbers;
-    List<Customer> listCustomer;
+    int nchair, noOfTAs, availableTAs;
+    List<Student> listStudent;
 
     Random r = new Random();
 
-    public Bshop(int noOfBarbers, int noOfChairs) {
+    public Broom(int noOfTAs, int noOfChairs) {
         this.nchair = noOfChairs;
-        listCustomer = new LinkedList<>();
-        this.noOfBarbers = noOfBarbers;
-        availableBarbers = noOfBarbers;
+        listStudent = new LinkedList<>();
+        this.noOfTAs = noOfTAs;
+        availableTAs = noOfTAs;
     }
 
     public void setGui(SleepingTAGUI gui) {
         this.gui = gui;
     }
 
-    public AtomicInteger getBarbersWorking() {
+    public AtomicInteger getTAsWorking() {
         return barbersWorking;
     }
 
-    public AtomicInteger getBarbersSleeping() {
+    public AtomicInteger getTAsSleeping() {
         return barbersSleeping;
     }
 
-    public AtomicInteger getCustomersWaiting() {
-        return customersWaiting;
+    public AtomicInteger getStudentsWaiting() {
+        return studentsWaiting;
     }
 
-    public AtomicInteger getCustomersLeftAndWillRetry() {
-        return customersLeftAndWillRetry;
+    public AtomicInteger getStudentsLeftAndWillRetry() {
+        return studentsLeftAndWillRetry;
     }
 
    public void cutHair(int barberId) {
-        Customer customer;
-        synchronized (listCustomer) {
-            while (listCustomer.isEmpty()) {
-                System.out.println("Barber " + barberId + " is waiting for the customer and sleeps in his chair");
+        Student student;
+        synchronized (listStudent) {
+            while (listStudent.isEmpty()) {
+                System.out.println("TA " + barberId + " is waiting for the student and sleeps in his chair");
                 gui.updateTextFieldValues();
                 
                 try {
                     barbersSleeping.incrementAndGet();
-                    listCustomer.wait();
+                    listStudent.wait();
                     barbersSleeping.decrementAndGet();
                 } catch (InterruptedException iex) {
                     iex.printStackTrace();
                 }
             }
 
-            customer = listCustomer.remove(0);
-            customersWaiting.decrementAndGet();
+            student = listStudent.remove(0);
+            studentsWaiting.decrementAndGet();
 
-            if (listCustomer.isEmpty()) {
-                System.out.println("Customer " + customer.getCustomerId() +
+            if (listStudent.isEmpty()) {
+                System.out.println("Student " + student.getStudentId() +
                         " finds the barber asleep and wakes up the barber " + barberId);
                 gui.updateTextFieldValues();
             }
@@ -274,19 +270,19 @@ class Bshop {
         int millisDelay = 0;
         try {
             barbersWorking.incrementAndGet();
-            availableBarbers--;
+            availableTAs--;
             gui.updateTextFieldValues();
 
-            System.out.println("Barber " + barberId + " cutting hair of " + customer.getCustomerId());
+            System.out.println("TA " + barberId + " cutting hair of " + student.getStudentId());
 
             millisDelay = r.nextInt(2000) + 4000;
             Thread.sleep(millisDelay);
 
-            System.out.println("Completed Cutting hair of " + customer.getCustomerId() + " by barber " + barberId);
+            System.out.println("Completed Cutting hair of " + student.getStudentId() + " by barber " + barberId);
 
             totalHairCuts.incrementAndGet();
 
-            availableBarbers++;
+            availableTAs++;
             barbersWorking.decrementAndGet();
 
             gui.updateTextFieldValues();
@@ -295,35 +291,37 @@ class Bshop {
         }
     }
 
-    public void add(Customer customer) {
-        synchronized (listCustomer) {
-            while (listCustomer.size() == nchair) {
-                customersLost.incrementAndGet();
-                customersLeftAndWillRetry.incrementAndGet();
-                System.out.println("No chair available for customer " + customer.getCustomerId() +
-                        " so the customer leaves the shop");
+    public void add(Student student) {
+        synchronized (listStudent) {
+            while (listStudent.size() == nchair) {
+                studentsLost.incrementAndGet();
+                studentsLeftAndWillRetry.incrementAndGet();
+                System.out.println("No chair available for student " + student.getStudentId() +
+                        " so the student leaves the room");
                 gui.updateTextFieldValues();
                 
                 try {
-                    listCustomer.wait(5000);
+                    listStudent.wait(5000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                customersLeftAndWillRetry.decrementAndGet();
+                studentsLeftAndWillRetry.decrementAndGet();
             }
 
-            customersWaiting.incrementAndGet();
+            studentsWaiting.incrementAndGet();
 
-            if (availableBarbers > 0) {
-                listCustomer.add(customer);
-                listCustomer.notify();
+            if (availableTAs > 0) {
+                listStudent.add(student);
+                listStudent.notify();
             } else {
-                listCustomer.add(customer);
+                listStudent.add(student);
                 gui.updateTextFieldValues();
-                if (listCustomer.size() == 1)
-                    listCustomer.notify();
+                if (listStudent.size() == 1)
+                    listStudent.notify();
             }
         }
     }
 }
+
+
 
